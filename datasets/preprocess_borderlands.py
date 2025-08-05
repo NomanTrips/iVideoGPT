@@ -46,12 +46,12 @@ def encode_action(data: dict, action_dim: int) -> np.ndarray:
 
 def process_episode(frame_dir: str, action_dir: str, action_dim: int, diff_threshold: float) -> tuple:
     """Process a single episode and return images and actions."""
-    frame_files = sorted(glob.glob(os.path.join(frame_dir, "frame_*.png")))
+    frame_files = sorted(glob.glob(os.path.join(frame_dir, "frame_*.jpg")))
     images, actions = [], []
     prev_image = None
     for frame_file in tqdm(frame_files, desc=f"{os.path.basename(frame_dir) or 'episode'}"):
         base = os.path.basename(frame_file)
-        index = base.replace("frame_", "").replace(".png", "")
+        index = base.replace("frame_", "").replace(".jpg", "")
         action_file = os.path.join(action_dir, f"action_{index}.json")
         if not os.path.exists(action_file):
             continue
