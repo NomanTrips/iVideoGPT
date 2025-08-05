@@ -62,6 +62,7 @@ def get_base_stepsize(dataset_name):
 
         # downstream tasks
         'bair_robot_pushing': 1,
+        'borderlands': 1,
         'vp2_robodesk': 1,
         'vp2_robosuite': 1,
     }
@@ -90,6 +91,7 @@ def get_display_key(dataset_name):
 
         # downstream tasks
         'bair_robot_pushing': 'aux1_image',
+        'borderlands': 'image',
         'vp2_robodesk': 'image',
         'vp2_robosuite': 'image',
     }
