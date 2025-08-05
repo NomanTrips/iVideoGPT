@@ -61,3 +61,13 @@ python datasets/preprocess_vp2.py --dir_path robosuite --save_path robosuite_pre
 ```
 
 Then modify the saved paths (e.g. `robodesk_preprocessed` and `robosuite_preprocessed`) in `DATASET.yaml`.
+## Borderlands
+
+Use the following script to convert recorded game play into episodes of images and actions:
+
+```bash
+python datasets/preprocess_borderlands.py --frames_dir path/to/frames --actions_dir path/to/actions --output_path borderlands_preprocessed --diff_threshold 5
+```
+
+Adjust `--action_dim` if the model expects a different action size. Then modify the saved path (e.g. `borderlands_preprocessed`) in `DATASET.yaml`.
+
