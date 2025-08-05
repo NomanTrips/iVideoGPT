@@ -4,3 +4,4 @@ robonet_train_dataset: /dev/null/train
 robonet_test_dataset: /dev/null/test
 robodesk_dataset: /dev/null
 robosuite_dataset: /dev/null
+borderlands_dataset: /absolute/path/to/borderlands
