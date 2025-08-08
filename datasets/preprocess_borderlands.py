@@ -70,7 +70,7 @@ def process_episode(
 ) -> List[Tuple[np.ndarray, np.ndarray]]:
     """Return a list of (images, actions) trajectories for an episode.
 
-    Each trajectory contains ``traj_len`` consecutive frames and ``traj_len - 1``
+    Each trajectory contains ``traj_len`` consecutive frames and ``traj_len``
     actions. A trajectory is generated whenever the L1 pixel difference between
     two consecutive frames exceeds ``diff_threshold`` and enough subsequent
     frames remain to form a full trajectory.
@@ -109,7 +109,7 @@ def process_episode(
         end = start + traj_len
         if diff > diff_threshold and end <= images.shape[0]:
             traj_imgs = images[start:end]
-            traj_actions = actions[start:end - 1]
+            traj_actions = actions[start:end]
             trajs.append((traj_imgs, traj_actions))
 
     return trajs
