@@ -450,8 +450,8 @@ def main():
 
     # DataLoaders creation:
 
-    if args.dataset_name != "robotic":
-        raise NotImplementedError
+    #if args.dataset_name != "robotic":
+    #    raise NotImplementedError
 
     # DataLoaders creation:
     if args.strong_aug:

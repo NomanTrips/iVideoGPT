@@ -674,7 +674,7 @@ def start_train():
     )
 
     # On TPU, the tie weights in our model have been disconnected, so we need to restore the ties.
-    if accelerator.distributed_type == DistributedType.TPU:
+    if accelerator.distributed_type == DistributedType.TP:
         model.tie_weights()
 
     # Figure out how many steps we should save the Accelerator states

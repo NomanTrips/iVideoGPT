@@ -496,6 +496,10 @@ class EvalDataset(data.Dataset):
             parent_dir = yaml.load(open('DATASET.yaml'), Loader=yaml.FullLoader)['robosuite_dataset']
             self.filenames = glob.glob(os.path.join(parent_dir, 'validation', '*.npz'))
             self.filenames.sort()
+        elif dataset_name == 'borderlands':
+            parent_dir = yaml.load(open('DATASET.yaml'), Loader=yaml.FullLoader)['borderlands_dataset']
+            self.filenames = glob.glob(os.path.join(parent_dir, '*.npz'))
+            self.filenames.sort()
         else:
             raise NotImplementedError
 

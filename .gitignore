@@ -10,3 +10,4 @@ mbrl/demonstrations
 *_preprocessed
 *.log
 .git
+/wandb
