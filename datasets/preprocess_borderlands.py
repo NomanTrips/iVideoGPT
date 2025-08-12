@@ -47,34 +47,22 @@ def encode_action(data: dict, action_dim: int) -> np.ndarray:
     """Encode raw action dict into a fixed-length numeric vector.
 
     The resulting vector contains (W, A, S, D, left mouse button). Input
-    ``data`` may specify these controls either by name (e.g. ``"w"``) or by
-    their Windows virtual-key codes (e.g. ``87`` for ``W``). Unrecognized
-    fields are ignored and missing fields default to ``0``.
-    """
+    ``data`` should provide Windows virtual-key codes either under
+    ``"virtual_key_codes"`` or ``"virtual_keys"``. Codes {87, 65, 83, 68, 1}
+    correspond to (W, A, S, D, left mouse button). Unrecognized codes are
+    ignored and missing entries default to 0.
+    """,
 
-    name_to_idx = {
-        "w": 0,
-        "a": 1,
-        "s": 2,
-        "d": 3,
-        "mouse1": 4,
-        "left_click": 4,
-    }
     code_to_idx = {87: 0, 65: 1, 83: 2, 68: 3, 1: 4}
 
     vec = np.zeros(5, dtype=np.float32)
-    for key, value in data.items():
-        idx = None
-        if isinstance(key, str):
-            lower = key.lower()
-            if lower in name_to_idx:
-                idx = name_to_idx[lower]
-            elif key.isdigit():
-                idx = code_to_idx.get(int(key))
-        elif isinstance(key, int):
-            idx = code_to_idx.get(key)
+    codes = data.get("virtual_key_codes")
+    if codes is None:
+        codes = data.get("virtual_keys", [])
+    for code in codes:
+        idx = code_to_idx.get(code)
         if idx is not None:
-            vec[idx] = float(value)
+            vec[idx] = 1.0
 
     if action_dim > vec.shape[0]:
         pad = np.zeros(action_dim - vec.shape[0], dtype=np.float32)
