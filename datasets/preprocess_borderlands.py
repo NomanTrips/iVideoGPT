@@ -1,3 +1,5 @@
+# preprocess_borderlands.py
+
 import os
 import glob
 import json
@@ -8,13 +10,22 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+# ----------------------------
+# Windows VK -> bit positions
+# ----------------------------
+VK_TO_BIT = {
+    87: 0,   # W
+    65: 1,   # A
+    83: 2,   # S
+    68: 3,   # D
+    1:  4,   # LMB
+    2:  5,   # RMB
+    32: 6,   # Space
+    16: 7,   # Shift
+}
+NUM_BITS = 8  # len(VK_TO_BIT)
 
 def resize_with_letterbox(img: Image.Image, size: int = 64) -> np.ndarray:
-    """Resize ``img`` to a square ``size``×``size`` with letterboxing.
-
-    The aspect ratio of ``img`` is preserved and the remaining area is filled
-    with black pixels. The returned array has dtype ``uint8``.
-    """
     orig_w, orig_h = img.size
     scale = min(size / orig_w, size / orig_h)
     new_w, new_h = int(orig_w * scale), int(orig_h * scale)
@@ -25,56 +36,43 @@ def resize_with_letterbox(img: Image.Image, size: int = 64) -> np.ndarray:
     canvas.paste(resized, (paste_x, paste_y))
     return np.array(canvas, dtype=np.uint8)
 
-
 def get_episode_dirs(base_dir: str) -> List[str]:
-    """Return a list of episode directories.
-
-    If ``base_dir`` contains subdirectories, each subdirectory is treated
-    as an episode. Otherwise, ``base_dir`` itself is considered a single
-    episode directory.
-    """
     entries = sorted(
         [os.path.join(base_dir, d) for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
     )
-    if entries:
-        return entries
-    return [base_dir]
+    return entries if entries else [base_dir]
 
+def norm_clip(x: float, max_abs: float) -> float:
+    if max_abs <= 0:
+        return 0.0
+    x = max(-max_abs, min(max_abs, x))
+    return x / max_abs
 
-def encode_action(data: dict, action_dim: int) -> np.ndarray:
-    """Encode raw action dict into a fixed-length numeric vector."""
-    vec = np.array(
-        [
-            data.get("dx", 0.0),
-            data.get("dy", 0.0),
-            data.get("wheel", 0.0),
-            float(data.get("left_click", 0)),
-            float(data.get("right_click", 0)),
-        ],
-        dtype=np.float32,
-    )
-    if vec.shape[0] < action_dim:
-        pad = np.zeros(action_dim - vec.shape[0], dtype=np.float32)
-        vec = np.concatenate([vec, pad], axis=0)
-    else:
-        vec = vec[:action_dim]
-    return vec
+def encode_action(data: dict, max_abs_dx: float, max_abs_dy: float, max_abs_wheel: float) -> np.ndarray:
+    # 1) continuous (normalized to roughly [-1,1])
+    dx = norm_clip(float(data.get("dx", 0.0)), max_abs_dx)
+    dy = norm_clip(float(data.get("dy", 0.0)), max_abs_dy)
+    wheel = norm_clip(float(data.get("wheel", 0.0)), max_abs_wheel)
 
+    # 2) multi-hot for VKs
+    bits = np.zeros(NUM_BITS, dtype=np.float32)
+    vks = data.get("virtual_key_codes", []) or data.get("virtual_keys", []) or []
+    for vk in vks:
+        pos = VK_TO_BIT.get(int(vk))
+        if pos is not None:
+            bits[pos] = 1.0
+
+    return np.concatenate([np.array([dx, dy, wheel], dtype=np.float32), bits], axis=0)
 
 def process_episode(
     frame_dir: str,
     action_dir: str,
-    action_dim: int,
     diff_threshold: float,
     traj_len: int,
+    max_abs_dx: float,
+    max_abs_dy: float,
+    max_abs_wheel: float,
 ) -> List[Tuple[np.ndarray, np.ndarray]]:
-    """Return a list of (images, actions) trajectories for an episode.
-
-    Each trajectory contains ``traj_len`` consecutive frames and ``traj_len``
-    actions. A trajectory is generated whenever the L1 pixel difference between
-    two consecutive frames exceeds ``diff_threshold`` and enough subsequent
-    frames remain to form a full trajectory.
-    """
     frame_files = sorted(glob.glob(os.path.join(frame_dir, "frame_*.jpg")))
     images, actions = [], []
 
@@ -90,7 +88,7 @@ def process_episode(
 
         with open(action_file, "r") as f:
             action_data = json.load(f)
-        action_vec = encode_action(action_data, action_dim).astype(np.float16)
+        action_vec = encode_action(action_data, max_abs_dx, max_abs_dy, max_abs_wheel)
 
         images.append(image)
         actions.append(action_vec)
@@ -98,8 +96,10 @@ def process_episode(
     if len(images) < 2:
         return []
 
-    images = np.stack(images)
-    actions = np.stack(actions)
+    images = np.stack(images)                 # (N, H, W, 3) uint8
+    actions = np.stack(actions).astype(np.float32)  # (N, 11) float32
+
+    # trigger points for building trajs (optional heuristic)
     imgs_int = images.astype(np.int16)
     diffs = np.mean(np.abs(imgs_int[1:] - imgs_int[:-1]), axis=(1, 2, 3))
 
@@ -108,23 +108,27 @@ def process_episode(
         start = i
         end = start + traj_len
         if diff > diff_threshold and end <= images.shape[0]:
-            traj_imgs = images[start:end]
-            traj_actions = actions[start:end]
+            traj_imgs = images[start:end]          # length = traj_len
+            traj_actions = actions[start:end]      # same length; model slices last internally
+            # Sanity: last action is unused by forward(), that’s ok.
             trajs.append((traj_imgs, traj_actions))
 
     return trajs
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess Borderlands dataset")
-    parser.add_argument("--frames_dir", type=str, required=True, help="Directory containing frame images")
-    parser.add_argument("--actions_dir", type=str, required=True, help="Directory containing action JSON files")
-    parser.add_argument("--output_path", type=str, required=True, help="Directory to save processed trajectories")
-    parser.add_argument("--diff_threshold", type=float, default=0.0, help="L1 pixel difference threshold")
-    parser.add_argument("--action_dim", type=int, default=5, help="Model action dimension")
-    parser.add_argument("--traj_len", type=int, default=20, help="Number of frames per trajectory")
-    args = parser.parse_args()
+    parser.add_argument("--frames_dir", type=str, required=True)
+    parser.add_argument("--actions_dir", type=str, required=True)
+    parser.add_argument("--output_path", type=str, required=True)
+    parser.add_argument("--diff_threshold", type=float, default=0.0)
+    parser.add_argument("--traj_len", type=int, default=20)
 
+    # normalization ranges (tweak to your capture)
+    parser.add_argument("--max_abs_dx", type=float, default=50.0, help="Pixels per frame mapped to 1.0")
+    parser.add_argument("--max_abs_dy", type=float, default=50.0)
+    parser.add_argument("--max_abs_wheel", type=float, default=10.0)
+
+    args = parser.parse_args()
     os.makedirs(args.output_path, exist_ok=True)
 
     frame_episode_dirs = get_episode_dirs(args.frames_dir)
@@ -134,9 +138,17 @@ if __name__ == "__main__":
     traj_idx = 0
     for f_dir, a_dir in zip(frame_episode_dirs, action_episode_dirs):
         trajs = process_episode(
-            f_dir, a_dir, args.action_dim, args.diff_threshold, args.traj_len
+            f_dir,
+            a_dir,
+            args.diff_threshold,
+            args.traj_len,
+            args.max_abs_dx,
+            args.max_abs_dy,
+            args.max_abs_wheel,
         )
         for imgs, acts in trajs:
             save_name = os.path.join(args.output_path, f"traj_{traj_idx:05d}.npz")
-            np.savez_compressed(save_name, **{"image": imgs, "action": acts})
+            np.savez_compressed(save_name, image=imgs, action=acts)
             traj_idx += 1
+
+    print(f"wrote {traj_idx} trajectories to {args.output_path}")
