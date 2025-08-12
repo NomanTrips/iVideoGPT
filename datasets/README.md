@@ -66,8 +66,18 @@ Then modify the saved paths (e.g. `robodesk_preprocessed` and `robosuite_preproc
 Use the following script to convert recorded game play into episodes of images and actions:
 
 ```bash
-python datasets/preprocess_borderlands.py --frames_dir path/to/frames --actions_dir path/to/actions --output_path borderlands_preprocessed --diff_threshold 5
+python datasets/preprocess_borderlands.py \
+    --frames_dir path/to/frames \
+    --actions_dir path/to/actions \
+    --output_path borderlands_preprocessed \
+    --diff_threshold 5
 ```
 
-Adjust `--action_dim` if the model expects a different action size. Then modify the saved path (e.g. `borderlands_preprocessed`) in `DATASET.yaml`.
+The script encodes actions as a 5‑D vector `[W, A, S, D, LMB]` and
+handles action JSON files that label controls either by name or by their
+Windows virtual-key codes (e.g. `87` for `W`, `1` for the left mouse button).
+It automatically balances the dataset by keeping all trajectories that include
+any key press and an equal number of trajectories without key presses. Adjust
+`--action_dim` if the model expects a different action size. Then modify the
+saved path (e.g. `borderlands_preprocessed`) in `DATASET.yaml`.
 

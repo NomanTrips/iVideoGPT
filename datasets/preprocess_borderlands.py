@@ -4,6 +4,8 @@ import json
 import argparse
 from typing import List, Tuple
 
+import random
+
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -42,22 +44,44 @@ def get_episode_dirs(base_dir: str) -> List[str]:
 
 
 def encode_action(data: dict, action_dim: int) -> np.ndarray:
-    """Encode raw action dict into a fixed-length numeric vector."""
-    vec = np.array(
-        [
-            data.get("dx", 0.0),
-            data.get("dy", 0.0),
-            data.get("wheel", 0.0),
-            float(data.get("left_click", 0)),
-            float(data.get("right_click", 0)),
-        ],
-        dtype=np.float32,
-    )
-    if vec.shape[0] < action_dim:
+    """Encode raw action dict into a fixed-length numeric vector.
+
+    The resulting vector contains (W, A, S, D, left mouse button). Input
+    ``data`` may specify these controls either by name (e.g. ``"w"``) or by
+    their Windows virtual-key codes (e.g. ``87`` for ``W``). Unrecognized
+    fields are ignored and missing fields default to ``0``.
+    """
+
+    name_to_idx = {
+        "w": 0,
+        "a": 1,
+        "s": 2,
+        "d": 3,
+        "mouse1": 4,
+        "left_click": 4,
+    }
+    code_to_idx = {87: 0, 65: 1, 83: 2, 68: 3, 1: 4}
+
+    vec = np.zeros(5, dtype=np.float32)
+    for key, value in data.items():
+        idx = None
+        if isinstance(key, str):
+            lower = key.lower()
+            if lower in name_to_idx:
+                idx = name_to_idx[lower]
+            elif key.isdigit():
+                idx = code_to_idx.get(int(key))
+        elif isinstance(key, int):
+            idx = code_to_idx.get(key)
+        if idx is not None:
+            vec[idx] = float(value)
+
+    if action_dim > vec.shape[0]:
         pad = np.zeros(action_dim - vec.shape[0], dtype=np.float32)
         vec = np.concatenate([vec, pad], axis=0)
     else:
         vec = vec[:action_dim]
+
     return vec
 
 
@@ -131,12 +155,24 @@ if __name__ == "__main__":
     action_episode_dirs = get_episode_dirs(args.actions_dir)
     assert len(frame_episode_dirs) == len(action_episode_dirs), "Mismatched episode counts"
 
-    traj_idx = 0
+    with_press, without_press = [], []
     for f_dir, a_dir in zip(frame_episode_dirs, action_episode_dirs):
         trajs = process_episode(
             f_dir, a_dir, args.action_dim, args.diff_threshold, args.traj_len
         )
         for imgs, acts in trajs:
-            save_name = os.path.join(args.output_path, f"traj_{traj_idx:05d}.npz")
-            np.savez_compressed(save_name, **{"image": imgs, "action": acts})
-            traj_idx += 1
+            if np.any(acts):
+                with_press.append((imgs, acts))
+            else:
+                without_press.append((imgs, acts))
+
+    random.shuffle(without_press)
+    keep_without = without_press[: len(with_press)]
+    all_trajs = with_press + keep_without
+    random.shuffle(all_trajs)
+
+    traj_idx = 0
+    for imgs, acts in all_trajs:
+        save_name = os.path.join(args.output_path, f"traj_{traj_idx:05d}.npz")
+        np.savez_compressed(save_name, **{"image": imgs, "action": acts})
+        traj_idx += 1
