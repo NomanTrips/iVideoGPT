@@ -71,6 +71,26 @@ To replicate our pre-training on OXE, you need to extract all datasets listed un
 
 See instructions at [`datasets`](/datasets) on preprocessing more datasets.
 
+## Borderlands
+
+Use the following script to convert recorded game play into episodes of images and actions:
+
+```bash
+python datasets/preprocess_borderlands.py \
+    --frames_dir path/to/frames \
+    --actions_dir path/to/actions \
+    --output_path borderlands_preprocessed \
+    --diff_threshold 5
+```
+
+The script encodes actions as a 5‑D vector `[W, A, S, D, LMB]` and
+handles action JSON files that label controls either by name or by their
+Windows virtual-key codes (e.g. `87` for `W`, `1` for the left mouse button).
+It automatically balances the dataset by keeping all trajectories that include
+any key press and an equal number of trajectories without key presses. Adjust
+`--action_dim` if the model expects a different action size. Then modify the
+saved path (e.g. `borderlands_preprocessed`) in `DATASET.yaml`.
+
 ## 🚀 Inference Examples
 
 For action-free video prediction on Open X-Embodiment, run:
