@@ -63,6 +63,7 @@ def get_base_stepsize(dataset_name):
         # downstream tasks
         'bair_robot_pushing': 1,
         'borderlands': 1,
+        'computer_world': 1,
         'vp2_robodesk': 1,
         'vp2_robosuite': 1,
     }
@@ -92,6 +93,7 @@ def get_display_key(dataset_name):
         # downstream tasks
         'bair_robot_pushing': 'aux1_image',
         'borderlands': 'image',
+        'computer_world': 'image',
         'vp2_robodesk': 'image',
         'vp2_robosuite': 'image',
     }
@@ -176,6 +178,14 @@ class SimpleRoboticDatasetv2(data.Dataset):
                 parent_dir = yaml.load(open('DATASET.yaml'), Loader=yaml.FullLoader)['robonet_test_dataset']
             self.filenames = glob.glob(os.path.join(parent_dir, '*.npz'))
             self.filenames.sort()
+        elif dataset_name == 'computer_world':
+            parent_dir = yaml.load(open('DATASET.yaml'), Loader=yaml.FullLoader)['computer_world_dataset']
+            self.filenames = glob.glob(os.path.join(parent_dir, '*.npz'))
+            self.filenames.sort()
+            if train:
+                self.filenames = [x for i, x in enumerate(self.filenames) if i % 100 != 0]
+            else:
+                self.filenames = [x for i, x in enumerate(self.filenames) if i % 100 == 0]
         else:
             self.filenames = glob.glob(os.path.join(parent_dir, dataset_name, '*.npz'))
             self.filenames.sort()
@@ -498,6 +508,10 @@ class EvalDataset(data.Dataset):
             self.filenames.sort()
         elif dataset_name == 'borderlands':
             parent_dir = yaml.load(open('DATASET.yaml'), Loader=yaml.FullLoader)['borderlands_dataset']
+            self.filenames = glob.glob(os.path.join(parent_dir, '*.npz'))
+            self.filenames.sort()
+        elif dataset_name == 'computer_world':
+            parent_dir = yaml.load(open('DATASET.yaml'), Loader=yaml.FullLoader)['computer_world_dataset']
             self.filenames = glob.glob(os.path.join(parent_dir, '*.npz'))
             self.filenames.sort()
         else:

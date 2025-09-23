@@ -5,3 +5,4 @@ robonet_test_dataset: /dev/null/test
 robodesk_dataset: /dev/null
 robosuite_dataset: /dev/null
 borderlands_dataset: /home/brian/Desktop/run_0005_npz
+computer_world_dataset: /abs/path/to/npz
