@@ -1,6 +1,6 @@
 import numpy as np
 
-data = np.load("/home/brian/Desktop/borderlands/traj_00001.npz", allow_pickle=True)
+data = np.load("/abs/path/to/npz/traj_00001.npz", allow_pickle=True)
 
 # Check if it's a dict-like npz or a plain array
 if hasattr(data, 'files'):
