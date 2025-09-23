@@ -249,8 +249,8 @@ def process_episode(
     traj_idx = start_traj_idx
 
     for idx in common:
-        frame_path = os.path.join(frame_dir, f"frame_{idx:06d}.jpg")
-        action_path = os.path.join(action_dir, f"action_{idx:06d}.json")
+        frame_path = os.path.join(frame_dir, f"frame_{idx:02d}.jpg")
+        action_path = os.path.join(action_dir, f"action_{idx:02d}.json")
 
         with Image.open(frame_path) as img:
             frame_arr = resize_frame(img.convert("RGB"), width, height)
